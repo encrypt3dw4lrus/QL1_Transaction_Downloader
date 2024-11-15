@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QOM CSV Transaction Downloader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+        }
+
+        h1 {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+            text-align: left;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0 20px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        p {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .nav-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 0.9em;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .nav-button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px 20px;
+            }
+
+            h1 {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="qrc20_csv_downloader.html" class="nav-button">QRC20 CSV Downloader</a>
+        <h1>QOM CSV Transaction Downloader</h1>
+        <form id="fetchForm">
+            <label for="address">Wallet Address:</label>
+            <input type="text" id="address" placeholder="Enter wallet address" required>
+
+            <label for="startBlock">Start Block:</label>
+            <input type="number" id="startBlock" placeholder="Enter start block" required>
+
+            <button type="submit">Fetch Transactions</button>
+        </form>
+        <p id="status"></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+    <script>
+        const form = document.getElementById("fetchForm");
+        const status = document.getElementById("status");
+
+        const RPC_URL = "https://rpc.qom.one";
+        const MAX_BLOCK_DISTANCE = 10000;
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            status.textContent = "Fetching transactions...";
+
+            const walletAddress = document.getElementById("address").value.toLowerCase();
+            const startBlock = parseInt(document.getElementById("startBlock").value);
+
+            if (!ethers.utils.isAddress(walletAddress)) {
+                status.textContent = "Invalid wallet address.";
+                return;
+            }
+
+            const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+
+            let latestBlock;
+            try {
+                latestBlock = await provider.getBlockNumber();
+                console.log(`Latest Block: ${latestBlock}`);
+            } catch (error) {
+                status.textContent = "Error connecting to RPC. Check the URL.";
+                console.error(error);
+                return;
+            }
+
+            const transactions = [];
+            try {
+                for (let fromBlock = startBlock; fromBlock <= latestBlock; fromBlock += MAX_BLOCK_DISTANCE) {
+                    const toBlock = Math.min(fromBlock + MAX_BLOCK_DISTANCE - 1, latestBlock);
+
+                    console.log(`Fetching logs from ${fromBlock} to ${toBlock}`);
+
+                    const filter = {
+                        fromBlock: ethers.utils.hexValue(fromBlock),
+                        toBlock: ethers.utils.hexValue(toBlock),
+                        address: null,
+                        topics: [
+                            null,
+                            [
+                                ethers.utils.hexZeroPad(walletAddress, 32),
+                                ethers.utils.hexZeroPad(walletAddress, 32), 
+                            ]
+                        ]
+                    };
+
+                    const logs = await provider.getLogs(filter);
+
+                    for (const log of logs) {
+                        const tx = await provider.getTransaction(log.transactionHash);
+                        transactions.push({
+                            blockNumber: tx.blockNumber,
+                            hash: tx.hash,
+                            from: tx.from,
+                            to: tx.to,
+                            value: ethers.utils.formatEther(tx.value),
+                            gasPrice: ethers.utils.formatUnits(tx.gasPrice, "gwei"),
+                            gasUsed: tx.gasLimit.toString()
+                        });
+                    }
+
+                    status.textContent = `Processed blocks ${fromBlock} to ${toBlock}`;
+                }
+
+                const csv = convertToCSV(transactions);
+                const blob = new Blob([csv], { type: "text/csv" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `${walletAddress}_transactions.csv`;
+                link.click();
+
+                status.textContent = "Transactions downloaded successfully!";
+            } catch (error) {
+                status.textContent = "Error fetching transactions.";
+                console.error(error);
+            }
+        });
+
+        function convertToCSV(data) {
+            const headers = ["Block Number", "Transaction Hash", "From", "To", "Value (ETH)", "Gas Price (Gwei)", "Gas Used"];
+            const rows = data.map(tx => [
+                tx.blockNumber,
+                tx.hash,
+                tx.from,
+                tx.to,
+                tx.value,
+                tx.gasPrice,
+                tx.gasUsed
+            ]);
+
+            return [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+        }
+    </script>
+</body>
+</html>
