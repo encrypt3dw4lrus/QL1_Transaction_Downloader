@@ -215,7 +215,7 @@
                 const blob = new Blob([csv], { type: "text/csv" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `${walletAddress}_erc20_transactions.csv`;
+                link.download = `${walletAddress}_${tokenAddress}_qrc20_transactions.csv`;
                 link.click();
 
                 status.textContent = "ERC-20 transactions downloaded successfully!";

@@ -191,7 +191,7 @@
                 const blob = new Blob([csv], { type: "text/csv" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `${walletAddress}_transactions.csv`;
+                link.download = `${walletAddress}_ql1_transactions.csv`;
                 link.click();
 
                 status.textContent = "Transactions downloaded successfully!";
