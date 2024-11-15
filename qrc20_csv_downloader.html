@@ -108,13 +108,13 @@
             <label for="address">Wallet Address:</label>
             <input type="text" id="address" placeholder="Enter wallet address" required>
 
-            <label for="tokenAddress">ERC-20 Token Address:</label>
+            <label for="tokenAddress">QRC-20 Token Address:</label>
             <input type="text" id="tokenAddress" placeholder="Enter token contract address" required>
 
             <label for="startBlock">Start Block:</label>
             <input type="number" id="startBlock" placeholder="Enter start block" required>
 
-            <button type="submit">Fetch ERC-20 Transactions</button>
+            <button type="submit">Fetch QRC-20 Transactions</button>
         </form>
         <p id="status"></p>
     </div>
@@ -130,7 +130,7 @@
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            status.textContent = "Fetching ERC-20 transactions...";
+            status.textContent = "Fetching QRC-20 transactions...";
 
             const walletAddress = document.getElementById("address").value.toLowerCase();
             const tokenAddress = document.getElementById("tokenAddress").value.toLowerCase();
@@ -218,9 +218,9 @@
                 link.download = `${walletAddress}_${tokenAddress}_qrc20_transactions.csv`;
                 link.click();
 
-                status.textContent = "ERC-20 transactions downloaded successfully!";
+                status.textContent = "QRC-20 transactions downloaded successfully!";
             } catch (error) {
-                status.textContent = "Error fetching ERC-20 transactions.";
+                status.textContent = "Error fetching QRC-20 transactions.";
                 console.error(error);
             }
         });
